@@ -13,39 +13,22 @@ import math
 
 from draw import Maze
 
-maze_data = ( ( 2, 0, 1, 0, 0 ),
-              ( 0, 0, 0, 0, 1 ),
-              ( 1, 1, 1, 0, 0 ),
-              ( 1, 0, 0, 0, 0 ),
-              ( 0, 0, 2, 0, 1 ))
+# 0 - empty square
+# 1 - occupied square
+# 2 - occupied square with a beacon at each corner, detectable by the robot
 
-maze_data = ( ( 1, 1, 0, 0, 1, 2, 0, 0, 0, 0 ),
+maze_data = ( ( 1, 1, 0, 0, 1, 2, 0, 1, 0, 0 ),
               ( 1, 2, 0, 1, 1, 1, 0, 0, 0, 0 ),
               ( 0, 1, 0, 0, 0, 0, 0, 1, 0, 1 ),
               ( 0, 0, 0, 0, 1, 0, 0, 1, 1, 2 ),
               ( 1, 1, 1, 1, 1, 2, 0, 0, 0, 0 ),
-              ( 1, 1, 1, 0, 1, 1, 1, 0, 0, 0 ),
+              ( 1, 1, 1, 0, 1, 1, 1, 0, 1, 0 ),
               ( 2, 0, 0, 0, 0, 0, 0, 0, 0, 0 ),
               ( 1, 2, 0, 1, 1, 0, 0, 2, 0, 0 ),
               ( 0, 0, 0, 0, 1, 1, 0, 0, 1, 0 ),
-              ( 0, 0, 0, 0, 2, 1, 0, 0, 1, 0 ))
+              ( 0, 1, 0, 0, 2, 1, 0, 0, 1, 0 ))
 
-PARTICLE_COUNT = 2000    # Total number of particles
-N = 500                  # Number of particles shuffled per iteration
-
-# Algorithm variants:
-# 1 is the particle filter that just relies on particle weights
-# to distribute them. It sometimes seems to paint itself into a
-# corner when its hypothesis is wrong -- all particles get drawn
-# to that wrong location and there aren't any left around the real
-# position, so there is little chance of ever correcting that.
-# One needs a large amount of particles to counter that (try 2000+).
-# 2 is a variant that kills off impossible particles and replaces
-# them with fresh, randomly distributed particles. This seems to
-# be much more resilient because it re-seeds the hypothesis space
-# every now and then. It works better with less particles (400 is
-# fine).
-ALGO = 1
+N = 2000    # Total number of particles
 
 # ------------------------------------------------------------------------
 # Some utility functions
@@ -54,13 +37,13 @@ def add_noise(level, *coords):
     return [x + random.uniform(-level, level) for x in coords]
 
 def add_little_noise(*coords):
-    return add_noise(0.02, *coords)
+    return add_noise(0.2, *coords)
 
 def add_some_noise(*coords):
     return add_noise(0.1, *coords)
 
-def weightedPick(particles, nu):
-    r = random.uniform(0, nu)
+def weightedPick(particles):
+    r = random.uniform(0, 1)
     s = 0.0
     for p in particles:
         s += p.w
@@ -70,9 +53,9 @@ def weightedPick(particles, nu):
 
 # ------------------------------------------------------------------------
 class Particle(object):
-    def __init__(self, x, y, heading=270, w=1):
-        self.x = x
-        self.y = y
+    def __init__(self, coord, heading=270, w=1):
+        self.x = coord[0]
+        self.y = coord[1]
         self.h = heading
         self.w = w
 
@@ -89,7 +72,7 @@ class Particle(object):
 
     @classmethod
     def create_random(cls, count, maze):
-        return [cls(*maze.random_free_place(), w=1.0 / count) for _ in range(0, count)]
+        return [cls(maze.random_free_place(), w=1.0 / count) for _ in range(0, count)]
 
     def read_sensor(self, maze):
         """
@@ -100,7 +83,7 @@ class Particle(object):
 # ------------------------------------------------------------------------
 class Robot(Particle):
     def __init__(self, maze):
-        super(Robot, self).__init__(*maze.random_free_place(), heading=90)
+        super(Robot, self).__init__(maze.random_free_place(), heading=90)
         self.chose_random_direction()
         self.step_count = 0
 
@@ -131,64 +114,49 @@ class Robot(Particle):
 
 # ------------------------------------------------------------------------
 
-m = Maze(maze_data)
-m.draw()
+world = Maze(maze_data)
+world.draw()
 
-particles = Particle.create_random(PARTICLE_COUNT, m)
-robbie = Robot(m)
+# initial distribution assigns each particle an equal probability
+robot = Robot(world)
+state = Particle.create_random(N, world)
 
 while True:
-    # Read robbie's sensor
-    r_d = robbie.read_sensor(m)
 
-    # Update particle weight according to how good every particle matches
-    # robbie's sensor reading
-    for p in particles:
-        if m.is_free(*p.xy):
-            p_d = p.read_sensor(m)
-            # This is just a gaussian I pulled out of my hat, near to
-            # robbie's measurement => 1, further away => 0
-            g = math.e ** -((r_d - p_d)**2 * 7)
-            p.w = g
-        else:
-            p.w = 0
+    # draw the state
+    world.show_particles(state)
+    world.show_robot(robot)
 
-    # Time for some action!
-    m.show_particles(particles)
-    m.show_robot(robbie)
+    # move randomly
+    robot.move(world)
 
-    # I'm doing the movement first, it makes life easier
+    # take measurement
+    z = robot.read_sensor(world)
 
-    robbie.move(m)
+    # resample
+    state_prime = []
+    eta = 0
+    for _ in range(0, N):
 
-    # Move particles according to my belief of movement (this may
-    # be different than the real movement, but it's all I got)
-    for p in particles:
-        p.x += robbie.dx
-        p.y += robbie.dy
+        # j ~ {w} with replacement
+        sj = weightedPick(state)
 
-    # ---------- Shuffle particles ----------
+        # x' ~ P( x' | U, sj )
+        x_prime = Particle(add_some_noise(sj.x + robot.dx, sj.y + robot.dy))
 
-    new_particles = []
+        # w' = P( z | x' ); 1 is close to the robot's measurement, 0 is farther away
+        error = z - x_prime.read_sensor(world)
+        w_prime = math.e ** -(error ** 2 * 11) if world.is_free(*x_prime.xy) else 0
+        x_prime.w = w_prime
 
-    # Remove all particles that cannot be right (out of arena, inside
-    # obstacle), then add random new ones so the overall count fits
-    if ALGO == 2:
-        particles = [p for p in particles if p.w > 0]
-        new_particles += Particle.create_random(PARTICLE_COUNT - len(particles), m)
+        # accumulate normalizer
+        eta += w_prime
 
-    # Pick N particles according to weight, duplicate them and add
-    # some noise to their position
-    nu = sum(p.w for p in particles)
-    for cnt in range(0, N):
-        p = weightedPick(particles, nu)
-        new_particles.append(Particle(p.x, p.y))
+        # add to new state
+        state_prime.append(x_prime)
 
-    # Add some random noise
-    for p in new_particles:
-        p.x, p.y = add_some_noise(p.x, p.y)
+    # normalize weights
+    for x in state_prime:
+        x.w *= 1 / eta
 
-    # Ensure we have PARTICLE_COUNT particles, kill off those with
-    # the least weight first
-    particles += new_particles
-    particles = sorted(particles, key=lambda p: p.w, reverse=True)[0:PARTICLE_COUNT]
+    state = state_prime

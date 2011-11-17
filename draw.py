@@ -27,7 +27,7 @@ class Maze(object):
                     nb_y = self.height - y - 1
                     self.blocks.append((x, nb_y))
                     if block == 2:
-                        self.beacons.extend(((x, nb_y), (x+1, nb_y), (x, nb_y+1), (x+1, nb_y+1)))
+                        self.beacons.extend(((x, nb_y), (x, nb_y+1), (x+1, nb_y+1)))
 
     def draw(self):
         for x, y in self.blocks:

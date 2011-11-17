@@ -1,3 +1,29 @@
+I forked the original python demo in an attempt to make the filter
+as close to the algorithm presented in class as possible.  I can now
+compare the algorithm, line-for-line, with the lecture notes presented
+in 11-20.
+
+I hope this helps you!  I found by playing around with this code gave me
+a much better understand exactly how this algorithm works.  I encourage
+you to do the same.
+
+The code works substantially the same way, but probably performs a
+little worse and is a little less efficient than Martin's original
+implementation, but is more faithful to the 11-20.
+
+I notice that this algorithm almost always converges, but occassionally
+seems to come to the wrong conclusion.  I think this is due to the
+lack of random placements in the 'world', creating many ambiguous
+readings.  If the maze had more irregular features, it would probably
+work better.  I reduced the number of beacons and added additional
+blocks to help with this.  I'd be interested in any comments people
+post on why this happens.
+
+ - jrt
+
+----
+Original comments:
+
   This is a very simple particle filter example prompted by
 Stanford's Intro to AI lectures.
 
