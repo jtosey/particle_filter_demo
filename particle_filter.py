@@ -11,6 +11,9 @@
 #  Modified by Joseph Tosey on 2011-11-16
 #    - make pick operation O(nlog(n)); previously O(n^2)
 #    - more disperse error calculation to reduce wrong convergence
+#    - extract StdDev so it is easier to manipulate
+#    - don't create new particles in occupied cells
+#    - double speed of turtle
 #
 # ------------------------------------------------------------------------
 
@@ -38,6 +41,7 @@ maze_data = ( ( 1, 1, 0, 0, 1, 2, 0, 1, 0, 0 ),
               ( 0, 1, 0, 0, 2, 1, 0, 0, 1, 0 ))
 
 N = 2000    # Total number of particles
+
 
 # ------------------------------------------------------------------------
 # Some utility functions
@@ -112,7 +116,7 @@ class Robot(Particle):
         Move the robot. Note that the movement is stochastic too.
         """
         while True:
-            self.step_count += 1
+            self.step_count += 2
             xx, yy = add_noise(0.02, self.x + self.dx, self.y + self.dy)
             if maze.is_free(xx, yy) and self.step_count % 30 != 0:
                 self.x, self.y = xx, yy
@@ -129,6 +133,8 @@ world.draw()
 # initial distribution assigns each particle an equal probability
 robot = Robot(world)
 state = Particle.create_random(N, world)
+
+StdDev = 1.4
 
 while True:
 
@@ -150,15 +156,22 @@ while True:
     eta  = 0
     for _ in range(0, N):
 
-        # j ~ {w} with replacement
-        sj = dist.pick()
+        while True:
 
-        # x' ~ P( x' | U, sj )
-        x_prime = Particle(add_some_noise(sj.x + robot.dx, sj.y + robot.dy))
+          # j ~ {w} with replacement
+          sj = dist.pick()
+
+          # x' ~ P( x' | U, sj )
+          x_prime = Particle(add_some_noise(sj.x + robot.dx, sj.y + robot.dy))
+
+          # loop to discard particles in impossible places (occupied cells) because
+          # our probability distribution distribution doesn't know about occupancy
+          if world.is_free(*x_prime.xy):
+              break
 
         # w' = P( z | x' ); 1 is close to the robot's measurement, 0 is farther away
         error = z - x_prime.read_sensor(world)
-        w_prime = math.e ** -(error ** 2 / 4) if world.is_free(*x_prime.xy) else 0
+        w_prime = math.e ** -(error ** 2 / (2 * StdDev ** 2))
         x_prime.w = w_prime
 
         # accumulate normalizer

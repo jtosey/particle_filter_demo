@@ -11,14 +11,6 @@ The code works substantially the same way, but probably performs a
 little worse and is a little less efficient than Martin's original
 implementation, but is more faithful to the 11-20.
 
-I notice that this algorithm almost always converges, but occassionally
-seems to come to the wrong conclusion.  I think this is due to the
-lack of random placements in the 'world', creating many ambiguous
-readings.  If the maze had more irregular features, it would probably
-work better.  I reduced the number of beacons and added additional
-blocks to help with this.  I'd be interested in any comments people
-post on why this happens.
-
  - jrt
 
 ----
