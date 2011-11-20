@@ -3,6 +3,10 @@ as close to the algorithm presented in class as possible.  I can now
 compare the algorithm, line-for-line, with the lecture notes presented
 in 11-20.
 
+In this demo, the robot location is a green turtle, and the estimated
+location of the robot (once the particles converge) is shown as a red
+turtle.
+
 I hope this helps you!  I found by playing around with this code gave me
 a much better understand exactly how this algorithm works.  I encourage
 you to do the same.
@@ -10,6 +14,17 @@ you to do the same.
 The code works substantially the same way, but probably performs a
 little worse and is a little less efficient than Martin's original
 implementation, but is more faithful to the 11-20.
+
+With only a single sensor, and a fairly symmetric world, the robot
+sometimes converges to the wrong location even with thousands of particles
+because it can get the same correlation of readings in multiple parts of the
+maze.  I've extended the filter with an algorithm that continuously checks
+whether the estimate has converged, and whether it continues to produce
+measurements that are strongly correlated with the robot.  If it has a
+converged solution (low geographcial dispersion) but the weighted
+measurements show poor correlation, we have to assume that it converged
+to the wrong locale.  In this case we reset the filter to new random
+initial conditions and start again.
 
  - jrt
 

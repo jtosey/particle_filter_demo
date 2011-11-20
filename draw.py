@@ -47,7 +47,6 @@ class Maze(object):
         for x, y in self.beacons:
             turtle.setposition(x, y)
             turtle.dot()
-        turtle.update()
 
     def weight_to_color(self, weight):
         return "#%02x00%02x" % (int(weight * 255), int((1 - weight) * 255))
@@ -65,8 +64,13 @@ class Maze(object):
         xx = int(x)
         return self.maze[yy][xx] == 0
 
-    def show_particles(self, particles):
+    def clear(self):
         turtle.clearstamps()
+
+    def update(self):
+        turtle.update()
+
+    def show_particles(self, particles):
         turtle.shape('dot')
 
         for p in particles:
@@ -81,7 +85,13 @@ class Maze(object):
         turtle.setposition(*robot.xy)
         turtle.setheading(robot.h)
         turtle.stamp()
-        turtle.update()
+
+    def show_estimate(self, estimate):
+        turtle.color("red")
+        turtle.shape('turtle')
+        turtle.setposition(*estimate.xy)
+        turtle.setheading(estimate.h)
+        turtle.stamp()
 
     def random_free_place(self):
         while True:
